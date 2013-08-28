@@ -211,14 +211,15 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
         //		CGAffineTransform rectTransform = [self _orientationTransformedRectOfImage:self.imageToCrop];
         //		visibleRect = CGRectApplyAffineTransform(visibleRect, rectTransform);
 		
-		//finally crop image
-		CGImageRef imageRef = CGImageCreateWithImageInRect([self.imageToCrop CGImage], visibleRect);
-		UIImage *result = [UIImage imageWithCGImage:imageRef scale:self.imageToCrop.scale orientation:self.imageToCrop.imageOrientation];
-		CGImageRelease(imageRef);
+        UIImage *result = [self.imageToCrop rotateImageTo:self.imageToCrop.imageOrientation];
         
-        result = [result rotateImageTo:self.imageToCrop.imageOrientation];
+		//finally crop image
+		CGImageRef imageRef = CGImageCreateWithImageInRect([result CGImage], visibleRect);
+		result = [UIImage imageWithCGImage:imageRef scale:self.imageToCrop.scale orientation:result.imageOrientation];
+		CGImageRelease(imageRef);
 		
 		return result;
+
     }
 }
 
