@@ -20,12 +20,12 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
 }
 
 @interface UIImage (Rotate)
-- (UIImage *)rotateImageTo:(UIImageOrientation)orientation;
+- (UIImage *)rotateImageTo:(UIImageOrientation)orientation withVisibleRect:(CGRect)visibleRect;
 @end
 
 @implementation UIImage (Rotate)
 
-- (UIImage *)rotateImageTo:(UIImageOrientation)orientation {
+- (UIImage *)rotateImageTo:(UIImageOrientation)orientation withVisibleRect:(CGRect)visibleRect {
     
     // We need to calculate the proper transformation to make the image upright.
     // We do it in 2 steps: Rotate if Left/Right/Down, and then flip if Mirrored.
@@ -73,6 +73,8 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
             break;
     }
     
+    visibleRect = CGRectApplyAffineTransform(visibleRect, transform);
+    
     // Now we draw the underlying CGImage into a new context, applying the transform
     // calculated above.
     CGContextRef ctx = CGBitmapContextCreate(NULL, self.size.width, self.size.height,
@@ -99,6 +101,11 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
     UIImage *img = [UIImage imageWithCGImage:cgimg];
     CGContextRelease(ctx);
     CGImageRelease(cgimg);
+    
+    CGImageRef imageRef = CGImageCreateWithImageInRect([img CGImage], visibleRect);
+    img = [UIImage imageWithCGImage:imageRef scale:self.scale orientation:img.imageOrientation];
+    CGImageRelease(imageRef);
+    
     return img;
 }
 
@@ -111,7 +118,7 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
 
 - (void)layoutSubviews{
     [super layoutSubviews];
-
+    
     UIView *zoomView = [self.delegate viewForZoomingInScrollView:self];
     
     CGSize boundsSize = self.bounds.size;
@@ -211,15 +218,10 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
         //		CGAffineTransform rectTransform = [self _orientationTransformedRectOfImage:self.imageToCrop];
         //		visibleRect = CGRectApplyAffineTransform(visibleRect, rectTransform);
 		
-        UIImage *result = [self.imageToCrop rotateImageTo:self.imageToCrop.imageOrientation];
+        UIImage *result = [self.imageToCrop rotateImageTo:self.imageToCrop.imageOrientation withVisibleRect:visibleRect];
         
-		//finally crop image
-		CGImageRef imageRef = CGImageCreateWithImageInRect([result CGImage], visibleRect);
-		result = [UIImage imageWithCGImage:imageRef scale:self.imageToCrop.scale orientation:result.imageOrientation];
-		CGImageRelease(imageRef);
-		
 		return result;
-
+        
     }
 }
 
@@ -251,7 +253,7 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
 {
     self = [super initWithFrame:frame];
     if (self) {
-
+        
         self.userInteractionEnabled = YES;
         self.backgroundColor = [UIColor blackColor];
         self.scrollView = [[ScrollView alloc] initWithFrame:self.bounds ];
@@ -259,7 +261,7 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
         self.scrollView.showsVerticalScrollIndicator = NO;
         self.scrollView.delegate = self;
         self.scrollView.clipsToBounds = NO;
-        self.scrollView.decelerationRate = 0.0; 
+        self.scrollView.decelerationRate = 0.0;
         self.scrollView.backgroundColor = [UIColor clearColor];
         [self addSubview:self.scrollView];
         
@@ -267,7 +269,7 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
         self.imageView.contentMode = UIViewContentModeScaleAspectFit;
         self.imageView.backgroundColor = [UIColor blackColor];
         [self.scrollView addSubview:self.imageView];
-    
+        
         
         self.scrollView.minimumZoomScale = CGRectGetWidth(self.scrollView.frame) / CGRectGetWidth(self.imageView.frame);
         self.scrollView.maximumZoomScale = 20.0;
@@ -280,7 +282,7 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event{
     if (!self.resizableCropArea)
         return self.scrollView;
-
+    
     GKResizeableCropOverlayView* resizeableCropView = (GKResizeableCropOverlayView*)self.cropOverlayView;
     
     CGRect outerFrame = CGRectInset(resizeableCropView.cropBorderView.frame, -10 , -10);
@@ -309,7 +311,7 @@ static CGRect GKScaleRect(CGRect rect, CGFloat scale)
     CGFloat toolbarSize = UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad ? 0 : 54;
     self.xOffset = floor((CGRectGetWidth(self.bounds) - size.width) * 0.5);
     self.yOffset = floor((CGRectGetHeight(self.bounds) - toolbarSize - size.height) * 0.5); //fixed
-
+    
     CGFloat height = self.imageToCrop.size.height;
     CGFloat width = self.imageToCrop.size.width;
     
